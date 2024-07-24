@@ -62,26 +62,13 @@ pipeline {
         stage ('Gradle Build') {
             steps {
                 sh """
-                    ./gradlew generateSwaggerCodeBusinessapi
-                    ./gradlew publish
+                    for component in $params.RELEASE_COMPONENTS; do
+                        echo "Building $component"
+                    done
                 """
             }
         }
 
-        stage('Publish to maven_s3') {
-            steps {
-                sh """
-                    ./gradlew publish
-                """
-            }
-        }
-        stage('Verify files on S3') {
-            steps {
-                sh """
-                    echo '------------Starting service ------------'
-                """
-            }
-        }
     }
 
     // post {
