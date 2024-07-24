@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+
+    tools {
+          jdk 'jdk8-local'
+    }
+
+    parameters {
+      string defaultValue: 'staging', name: 'BASE_BRANCH', trim: true
+      string defaultValue: 'release/2024-', name: 'RELEASE_BRANCH_NAME', trim: true
+      text defaultValue: '''clevercards-business-api
+      clevergift-api''', name: 'RELEASE_COMPONENTS'
+    }
+
+    // Global variables which are not changed by environments/branches
+    environment {
+        COMMITHASH = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
+        PROFILE = "default"
+        AWS_PROFILE="clevercards"
+        AWS_REGION="eu-west-1"
+        AWS_S3_BUCKET_NAME="s3://integration-builds/clevercards-business-api/temp/"
+        DEPLOYMENT_FILE_NAME="clevercards-business-api-integration-${COMMITHASH}.zip"
+        AWS_S3_KEY="clevercards-business-api/temp/${DEPLOYMENT_FILE_NAME}"
+        BUILD_NAME="${DEPLOYMENT_FILE_NAME}"
+        EB_ENVIRONMENT="clevercards-business-api-integration"
+        EB_APP_NAME="clevercards-business-api"
+
+    }
+
+    stages {
+        // Variables which are changed by environments/branches
+        stage('Environment') {
+            steps {
+                script {
+                    EXISTTAG = sh(returnStdout: true, script: "git tag --points-at HEAD | awk NF").trim()
+                    if (EXISTTAG) {
+                        GITTAG = sh(returnStdout: true, script: "git describe --exact-match --abbrev=0").trim()
+                        if  (GITTAG.contains("release-")) {
+                            env.ENVIRONTMENT = "release"
+                        }
+                    }
+                    if  (env.BRANCH_NAME == "main") {
+                            env.ENVIRONTMENT = "integration"
+                    }
+
+                }
+            }
+        }
+
+        // Configure stage
+        stage ('Configure') {
+            steps {
+                sh """
+                    echo '------------Configure------------'
+                    echo "Hello $params.BASE_BRANCH"
+                    echo "Hello $params.RELEASE_BRANCH_NAME"
+                    echo "Hello $params.RELEASE_COMPONENTS"
+                """
+            }
+        }
+
+        stage ('Gradle Build') {
+            steps {
+                sh """
+                    ./gradlew generateSwaggerCodeBusinessapi
+                    ./gradlew publish
+                """
+            }
+        }
+
+        stage('Publish to maven_s3') {
+            steps {
+                sh """
+                    ./gradlew publish
+                """
+            }
+        }
+        stage('Verify files on S3') {
+            steps {
+                sh """
+                    echo '------------Starting service ------------'
+                """
+            }
+        }
+    }
+
+    // post {
+         // always {
+            // cleanWs()
+        // }
+    // }
+}
