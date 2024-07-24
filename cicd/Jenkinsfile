@@ -1,82 +1,49 @@
 pipeline {
-    agent any
-
-    tools {
-          jdk 'jdk8-local'
+    agent {
+        label 'any'
     }
-
     parameters {
-      string defaultValue: 'staging', name: 'BASE_BRANCH', trim: true
-      string defaultValue: 'release/2024-', name: 'RELEASE_BRANCH_NAME', trim: true
-      text defaultValue: '''clevercards-business-api\nclevergift-api''', name: 'RELEASE_COMPONENTS'
+      text(name: 'VARS_CONTENT', defaultValue: 'CHICKEN: ', description: 'Favorite Bird')
     }
-
-    // Global variables which are not changed by environments/branches
-    environment {
-        COMMITHASH = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
-        PROFILE = "default"
-        AWS_PROFILE="clevercards"
-        AWS_REGION="eu-west-1"
-        AWS_S3_BUCKET_NAME="s3://integration-builds/clevercards-business-api/temp/"
-        DEPLOYMENT_FILE_NAME="clevercards-business-api-integration-${COMMITHASH}.zip"
-        AWS_S3_KEY="clevercards-business-api/temp/${DEPLOYMENT_FILE_NAME}"
-        BUILD_NAME="${DEPLOYMENT_FILE_NAME}"
-        EB_ENVIRONMENT="clevercards-business-api-integration"
-        EB_APP_NAME="clevercards-business-api"
-
-    }
-
     stages {
-        // Variables which are changed by environments/branches
-        stage('Environment') {
+        stage('Create textfile.txt file') {
+          steps {
+            writeFile file: "${WORKSPACE}/textfile.txt", text: params.VARS_CONTENT
+          }
+        }
+        stage('Check File Contents') {
             steps {
                 script {
-                    EXISTTAG = sh(returnStdout: true, script: "git tag --points-at HEAD | awk NF").trim()
-                    if (EXISTTAG) {
-                        GITTAG = sh(returnStdout: true, script: "git describe --exact-match --abbrev=0").trim()
-                        if  (GITTAG.contains("release-")) {
-                            env.ENVIRONTMENT = "release"
+                    def inputFile = "${WORKSPACE}/textfile.txt" // Replace with your text file path
+
+                    // Read the file contents and look for the keywords
+                    sh "grep -E '(OSTRICH|CHICKEN)' ${inputFile} > keyword_found.txt || true"
+                    def keywordsFound = readFile('keyword_found.txt').trim().split('\n')
+
+                    def yamlContent = ""
+                    keywordsFound.each { keyword ->
+                        if (keyword.trim()) {
+                            def userInput = input message: "Please provide the required information for ${keyword}:", parameters: [text(defaultValue: 'default_value', description: "Enter your input for ${keyword}:", name: keyword)]
+                            echo "User input for ${keyword}: ${userInput}"
+                            yamlContent += "${keyword}: ${userInput}\n"
                         }
                     }
-                    if  (env.BRANCH_NAME == "main") {
-                            env.ENVIRONTMENT = "integration"
-                    }
 
+                    if (yamlContent) {
+                        writeFile file: "${WORKSPACE}/input_values.yaml", text: yamlContent
+                        echo "YAML file created with input values."
+                    } else {
+                        echo 'Neither OSTRICH nor CHICKEN was found in the text file.'
+                    }
                 }
             }
         }
-
-        // Configure stage
-        stage ('Configure') {
+        stage('Final stage') {
             steps {
-                sh """
-                    echo '------------Configure------------'
-                    echo "Hello $params.BASE_BRANCH"
-                    echo "Hello $params.RELEASE_BRANCH_NAME"
-                    echo "Hello $params.RELEASE_COMPONENTS"
-                """
+                sh '''
+                  cat "${WORKSPACE}/input_values.yaml"
+                '''
             }
         }
-
-        stage ('Gradle Build') {
-            steps {
-                echo "" > ./folders.txt
-                echo "${params.RELEASE_COMPONENTS}" > ./folders.txt
-                sh """
-                    input="./folders.txt"
-                    while IFS= read -r line
-                    do
-                        new_line=$(echo $line | xargs)
-                        printf "\n${Cyan} --------------- $new_line ---------------${NC}\n"
-                """
-            }
-        }
-
     }
-
-    // post {
-         // always {
-            // cleanWs()
-        // }
-    // }
 }
