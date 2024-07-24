@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'any'
-    }
+    agent any
     parameters {
       text(name: 'VARS_CONTENT', defaultValue: 'CHICKEN: ', description: 'Favorite Bird')
     }
