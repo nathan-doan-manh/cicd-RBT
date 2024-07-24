@@ -8,8 +8,7 @@ pipeline {
     parameters {
       string defaultValue: 'staging', name: 'BASE_BRANCH', trim: true
       string defaultValue: 'release/2024-', name: 'RELEASE_BRANCH_NAME', trim: true
-      text defaultValue: '''clevercards-business-api
-      clevergift-api''', name: 'RELEASE_COMPONENTS'
+      text defaultValue: '''clevercards-business-api\nclevergift-api''', name: 'RELEASE_COMPONENTS'
     }
 
     // Global variables which are not changed by environments/branches
@@ -62,7 +61,7 @@ pipeline {
         stage ('Gradle Build') {
             steps {
                 sh """
-                    \$params.RELEASE_COMPONENTS > ./folders.txt
+                    echo "$params.RELEASE_COMPONENTS" > ./folders.txt
                     input="./folders.txt"
                     while IFS= read -r line
                     do
