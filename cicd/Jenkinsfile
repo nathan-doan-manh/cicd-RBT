@@ -60,10 +60,9 @@ pipeline {
 
         stage ('Gradle Build') {
             steps {
+                echo "" > ./folders.txt
+                echo "${params.RELEASE_COMPONENTS}" > ./folders.txt
                 sh """
-                    echo '------------Gradle Build------------'
-                    echo "" > ./folders.txt
-                    echo " ${params.RELEASE_COMPONENTS}" > ./folders.txt
                     input="./folders.txt"
                     while IFS= read -r line
                     do
