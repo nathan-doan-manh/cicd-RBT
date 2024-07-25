@@ -1,7 +1,7 @@
 pipeline {
     agent any
     parameters {
-      text(name: 'VARS_CONTENT', defaultValue: 'release/: ', description: 'Release Branch')
+      text(name: 'VARS_CONTENT', defaultValue: 'clevercards-business-api\nclevergift-api\nclevergift-core ', description: 'Release Branch')
     }
     stages {
         stage('Create textfile.txt file') {
@@ -15,7 +15,7 @@ pipeline {
                     def inputFile = "${WORKSPACE}/textfile.txt" // Replace with your text file path
 
                     // Read the file contents and look for the keywords
-                    sh "grep -E '(release/|CHICKEN)' ${inputFile} > keyword_found.txt || true"
+                    sh "grep -E '(clevercards-business-api|CHICKEN)' ${inputFile} > keyword_found.txt || true"
                     def keywordsFound = readFile('keyword_found.txt').trim().split('\n')
 
                     def yamlContent = ""
